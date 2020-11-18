@@ -47,39 +47,54 @@ class Presence implements AccessoryPlugin {
 
   private readonly log: Logging;
   private readonly name: string;
-  private triggers: Trigger[] = [];
+  private readonly motionDelay: number;
+  private readonly occupancyDelay: number;
+  private motionTimer: NodeJS.Timeout|null = null;
+  private occupancyTimer: NodeJS.Timeout|null = null;
 
-  private readonly switchService: Service;
   private readonly informationService: Service;
+  private readonly switchService: Service;
+  private readonly motionService: Service;
+  private readonly occupancyService: Service;
 
   constructor(log: Logging, config: AccessoryConfig, api: API) {
     this.log = log;
     this.name = config.name;
-
-    for(const trigger of config.triggers) {
-      this.triggers.push(new Trigger(trigger.name, trigger.delay));
-    }
+    this.motionDelay = config.motionDelay || (60 * 60);
+    this.occupancyDelay = config.occupancyDelay || (12 * 60 * 60);
 
     this.switchService = new hap.Service.Switch(this.name);
+    this.motionService = new hap.Service.MotionSensor(this.name);
+    this.occupancyService = new hap.Service.OccupancySensor(this.name);
 
     this.switchService.getCharacteristic(hap.Characteristic.On)
       .on(CharacteristicEventTypes.SET, (value: CharacteristicValue, callback: CharacteristicSetCallback) => {
-        this.triggers.forEach((trigger: Trigger) => {
-          trigger.setOccupancy(true);
-          if(trigger.timer != null) {
-            clearTimeout(trigger.timer);
-          }
-          trigger.timer = setTimeout(() => trigger.setOccupancy(false), (trigger.delay * 1000))
-        });
-        setTimeout(() => this.switchService.getCharacteristic(hap.Characteristic.On).updateValue(false), (1000));
+        this.motionService.getCharacteristic(hap.Characteristic.MotionDetected).updateValue(true);
+        if(this.motionTimer != null) {
+          clearTimeout(this.motionTimer);
+        }
+        this.motionTimer = setTimeout(
+          () => this.motionService.getCharacteristic(hap.Characteristic.MotionDetected).updateValue(false),
+          (this.motionDelay * 1000)
+        );
+
+        this.occupancyService.getCharacteristic(hap.Characteristic.OccupancyDetected).updateValue(true);
+        if(this.occupancyTimer != null) {
+          clearTimeout(this.occupancyTimer);
+        }
+        this.occupancyTimer = setTimeout(
+          () => this.occupancyService.getCharacteristic(hap.Characteristic.OccupancyDetected).updateValue(false),
+          (this.occupancyDelay * 1000)
+        );
+        setTimeout(() => this.switchService.getCharacteristic(hap.Characteristic.On).updateValue(false), (5000));
         callback();
       });
 
     this.informationService = new hap.Service.AccessoryInformation()
-      .setCharacteristic(hap.Characteristic.Manufacturer, "Custom Manufacturer")
-      .setCharacteristic(hap.Characteristic.Model, "Custom Model");
+      .setCharacteristic(hap.Characteristic.Manufacturer, "github.com/dubocr")
+      .setCharacteristic(hap.Characteristic.Model, "Presence");
 
-    log.info("Switch finished initializing!");
+    log.info("Presence service initialized!");
   }
 
   /*
@@ -98,24 +113,8 @@ class Presence implements AccessoryPlugin {
     return [
       this.informationService,
       this.switchService,
-    ].concat(this.triggers.map((trigger) => trigger.service));
-  }
-
-}
-
-class Trigger {
-  public readonly name: string;
-  public readonly delay: number;
-  public readonly service: Service;
-  public timer: NodeJS.Timeout|null = null;
-
-  constructor(name: string, delay: number) {
-    this.name = name;
-    this.delay = delay;
-    this.service = new hap.Service.OccupancySensor(name, name);
-  }
-
-  setOccupancy(occupancy: boolean) {
-    this.service.getCharacteristic(hap.Characteristic.OccupancyDetected).updateValue(occupancy);
+      this.motionService,
+      this.occupancyService
+    ];
   }
 }
