@@ -63,8 +63,8 @@ class Presence implements AccessoryPlugin {
     this.motionDelay = config.motionDelay || (60 * 60);
     this.occupancyDelay = config.occupancyDelay || (12 * 60 * 60);
 
-    this.switchService = new hap.Service.Switch(this.name);
-    this.motionService = new hap.Service.MotionSensor(this.name);
+    this.switchService = new hap.Service.Switch(this.name, 'Trigger');
+    this.motionService = new hap.Service.MotionSensor(this.name, 'Motion');
     this.occupancyService = new hap.Service.OccupancySensor(this.name);
 
     this.switchService.getCharacteristic(hap.Characteristic.On)
@@ -114,7 +114,7 @@ class Presence implements AccessoryPlugin {
       this.informationService,
       this.switchService,
       this.motionService,
-      this.occupancyService
+      this.occupancyService,
     ];
   }
 }
