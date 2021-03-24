@@ -4,6 +4,7 @@
   "description": "An homebridge plugin to manage presence",
   "main": "dist/accessory.js",
   "scripts": {
+    "lint": "eslint src/**.ts",
     "clean": "rimraf ./dist",
     "build": "rimraf ./dist && tsc",
     "prepublishOnly": "npm run lint && npm run build && npm version patch --m 'Release %s'",
