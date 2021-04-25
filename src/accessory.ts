@@ -60,7 +60,7 @@ class Presence implements AccessoryPlugin {
     private readonly motion: Characteristic;
     private readonly presence: Characteristic;
 
-    constructor(log: Logging, config: AccessoryConfig, api: API) {
+    constructor(log: Logging, config: AccessoryConfig) {
         this.log = log;
         this.name = config.name;
         this.stateful = config.stateful || false;
