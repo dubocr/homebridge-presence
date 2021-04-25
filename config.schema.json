@@ -1,0 +1,29 @@
+{
+  "pluginAlias": "Presence",
+  "pluginType": "accessory",
+  "schema": {
+    "type": "object",
+    "properties": {
+      "name": {
+        "type": "string",
+        "required": true,
+        "description": "The name of the accessory"
+      },
+      "stateful": {
+        "title": "Stateful switch",
+        "type": "boolean",
+        "description": "By default, switch is reseted after each triggers"
+      },
+      "motionDelay": {
+        "title": "Motion delay",
+        "type": "integer",
+        "description": "Delay before disabling motion sensor"
+      },
+      "occupancyDelay": {
+        "title": "Occupancy delay",
+        "type": "integer",
+        "description": "Delay before disabling occupancy sensor"
+      }
+    }
+  }
+}
