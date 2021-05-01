@@ -56,9 +56,10 @@ class Presence implements AccessoryPlugin {
     private motionTimer: NodeJS.Timeout | null = null;
     private occupancyTimer: NodeJS.Timeout | null = null;
 
-    private readonly trigger: Characteristic;
+    private readonly motionTrigger: Characteristic;
     private readonly motion: Characteristic;
-    private readonly presence: Characteristic;
+    private readonly occupancyTrigger: Characteristic;
+    private readonly occupancy: Characteristic;
 
     constructor(log: Logging, config: AccessoryConfig) {
         this.log = log;
@@ -67,15 +68,21 @@ class Presence implements AccessoryPlugin {
         this.motionDelay = config.motionDelay || (60 * 60);
         this.occupancyDelay = config.occupancyDelay || (12 * 60 * 60);
 
-        const triggerService = new hap.Service.Switch(this.name, 'Trigger');
-        const motionService = new hap.Service.MotionSensor(this.name, 'Motion');
+        const motionTriggerService = new hap.Service.Switch(this.name, 'Motion');
+        const motionService = new hap.Service.MotionSensor(this.name);
+        const occupancyTriggerService = new hap.Service.Switch(this.name, 'Occupancy');
         const occupancyService = new hap.Service.OccupancySensor(this.name);
 
-        this.trigger = triggerService.getCharacteristic(hap.Characteristic.On);
+        motionTriggerService.setCharacteristic(hap.Characteristic.Name, 'Motion');
+        this.motionTrigger = motionTriggerService.getCharacteristic(hap.Characteristic.On);
         this.motion = motionService.getCharacteristic(hap.Characteristic.MotionDetected);
-        this.presence = occupancyService.getCharacteristic(hap.Characteristic.OccupancyDetected);
 
-        triggerService.getCharacteristic(hap.Characteristic.On).onSet(this.onTrigger.bind(this));
+        occupancyTriggerService.setCharacteristic(hap.Characteristic.Name, 'Occupancy');
+        this.occupancyTrigger = occupancyTriggerService.getCharacteristic(hap.Characteristic.On);
+        this.occupancy = occupancyService.getCharacteristic(hap.Characteristic.OccupancyDetected);
+
+        motionTriggerService.getCharacteristic(hap.Characteristic.On).onSet(this.onMotion.bind(this));
+        occupancyTriggerService.getCharacteristic(hap.Characteristic.On).onSet(this.onOccupancy.bind(this));
 
         const informationService = new hap.Service.AccessoryInformation()
             .setCharacteristic(hap.Characteristic.Manufacturer, 'github.com/dubocr')
@@ -85,35 +92,51 @@ class Presence implements AccessoryPlugin {
 
         this.services = [
             informationService,
-            triggerService,
+            motionTriggerService,
             motionService,
+            occupancyTriggerService,
             occupancyService,
         ];
     }
 
-    private onTrigger(value: CharacteristicValue) {
+    private onMotion(value: CharacteristicValue) {
+        if (this.motionTimer !== null) {
+            clearTimeout(this.motionTimer);
+        }
+
+        if (this.occupancyTimer !== null) {
+            clearTimeout(this.occupancyTimer);
+        }
         if (value) {
             this.motion.updateValue(true);
-            this.presence.updateValue(true);
-
-            if (this.motionTimer !== null) {
-                clearTimeout(this.motionTimer);
-            }
-
-            if (this.occupancyTimer !== null) {
-                clearTimeout(this.occupancyTimer);
-            }
-
+            this.occupancy.updateValue(true);
+            this.occupancyTrigger.updateValue(true);
             if (!this.stateful) {
-                setTimeout(() => this.trigger.setValue(false), 1000);
+                setTimeout(() => this.motionTrigger.setValue(false), 1000);
             }
         } else {
             this.motionTimer = setTimeout(
                 () => this.motion.updateValue(false),
                 (this.motionDelay * 1000),
             );
+        }
+    }
+
+    private onOccupancy(value: CharacteristicValue) {
+        if (this.motionTimer !== null) {
+            clearTimeout(this.motionTimer);
+        }
+        if (this.occupancyTimer !== null) {
+            clearTimeout(this.occupancyTimer);
+        }
+        if (value) {
+            this.occupancy.updateValue(true);
+        } else {
+            this.motion.updateValue(false);
+            this.motionTrigger.updateValue(false);
+
             this.occupancyTimer = setTimeout(
-                () => this.presence.updateValue(false),
+                () => this.occupancy.updateValue(false),
                 (this.occupancyDelay * 1000),
             );
         }
